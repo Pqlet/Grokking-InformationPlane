@@ -1,0 +1,42 @@
+project_name: grokking-mnist-infoplane 
+custom_run_name : null # null for auto
+seed : 0
+download_directory : ./
+# Autoencoder
+# Specify paths to your saved state dicts
+ae:
+  L_latent_dim : 4  # Layer dimension after compression.
+  encoder_path : .\autoencoders\X_encoder_4.pt
+  decoder_path : .\autoencoders\X_decoder_4.pt
+
+# Mutual information estimator options
+mi:
+  sigma : 1e-3   # Noise-to-signal ratio.
+  agn_relative_scale : False # AGN relative scale
+  entropy_estimator_params :
+    method: "KL"
+    functional_params:
+      n_jobs: 4
+      k_neighbours: 20 # > 1 means weighted KL; 5 is enough for MNIST
+    rescale: True
+  compression : 'pca' # ['autoencoders', 'first_coords', 'pca', 'smi']
+  pca:
+    whiten_flag: True 
+  filter_mi_plots_flag : False
+
+# Training params
+train:
+  freqLog : 1_000 # How often to log after after `n_first_steps_to_log`
+  n_first_steps_to_log: 30 # Log every step at first
+  optimization_steps : 100_000 
+  batch_size : 200 
+  test_batch_size : 400 
+  train_points : 1_000 # 1_000 ot of 60_000 in MNIST
+  loss_function : 'MSE'  # 'MSE' for Grokking or 'CrossEntropy'
+  optimizer : 'AdamW'  # 'AdamW' or 'Adam' or 'SGD'
+  weight_decay : 1e-2
+  lr : 1e-3
+model:
+  initialization_scale : 8.0 
+  width : 200 # Width of every hidden MLP layer
+  activation : 'ReLU'  # 'ReLU' or 'Tanh' or 'Sigmoid' or 'GELU' or 'LeakyReLU'
