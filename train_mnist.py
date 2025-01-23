@@ -104,16 +104,16 @@ def main(cfg: DictConfig):
     """
     train_loader = torch.utils.data.DataLoader(train, batch_size=cfg.train.batch_size, shuffle=True,
                                                num_workers=0,
-                                               pin_memory=False,
+                                               pin_memory=True,
                                                )
     test_dataloader = torch.utils.data.DataLoader(test, batch_size=cfg.train.test_batch_size, shuffle=False,
                                                   num_workers=0,
-                                                  pin_memory=False,
+                                                  pin_memory=True,
                                                   )
     eval_dataloader = test_dataloader
     train_loader_nonshuffle = torch.utils.data.DataLoader(train, batch_size=cfg.train.batch_size, shuffle=False,
                                                num_workers=0,
-                                               pin_memory=False,
+                                               pin_memory=True,
                                                )
     dd_targets_mi = {}
     dd_targets_mi['eval'] = eval_dataloader.dataset.targets.detach().cpu().numpy()
@@ -204,10 +204,12 @@ def main(cfg: DictConfig):
             if (steps < cfg.train.n_first_steps_to_log) or (steps % cfg.train.freqLog == 0):
                 # Log loss, acc
                 # TODO: rewrite to compute everything at once
-                train_loss_ = (compute_loss(model_clf, train, cfg.train.loss_function, device, N=len(train)))
-                test_loss_ = (compute_loss(model_clf, test, cfg.train.loss_function, device, N=len(test)))
-                train_acc_ = (compute_accuracy(model_clf, train, device, N=len(train)))
-                test_acc_ = (compute_accuracy(model_clf, test, device, N=len(test)))
+                train_loss_, train_acc_ = (compute_loss_accuracy(model_clf, train, cfg.train.loss_function, device, N=len(train), batch_size=256))
+                test_loss_, test_acc_ = (compute_loss_accuracy(model_clf, test, cfg.train.loss_function, device, N=len(test), batch_size=256))
+                # test_loss_ = (compute_loss(model_clf, test, cfg.train.loss_function, device, N=len(test), batch_size=256))
+                # train_acc_ = (compute_loss_accuracy(model_clf, train, device, N=len(train)))
+                # test_acc_ = (compute_accuracy(model_clf, test, device, N=len(test)))
+                
                 # Used later for InfoPlane plotting
                 log_steps.append(steps)
                 # Log
@@ -414,18 +416,20 @@ def main(cfg: DictConfig):
                 # ------------------------------------
 
             optimizer.zero_grad()
-            y = model_clf(x.to(device))
-            if cfg.train.loss_function == 'CrossEntropy':
-                loss = loss_fn(y, labels.to(device))
-            elif cfg.train.loss_function == 'MSE':
-                loss = loss_fn(y, one_hots[labels])
+            # with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+            with torch.autocast(device_type='cuda', dtype=torch.float16):
+                y = model_clf(x.to(device))
+                if cfg.train.loss_function == 'CrossEntropy':
+                    loss = loss_fn(y, labels.to(device))
+                elif cfg.train.loss_function == 'MSE':
+                    loss = loss_fn(y, one_hots[labels])
 
             loss.backward()
             optimizer.step()
 
             run.log({f"Loss/train_optimizer": loss.cpu().detach().item()}, step=steps)
 
-            log_gradients_in_model_wandb(model=model_clf, run=run, step=steps)
+            # log_gradients_in_model_wandb(model=model_clf, run=run, step=steps)
 
             steps += 1
             pbar.update(1)

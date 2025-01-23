@@ -30,39 +30,46 @@ def get_float_wn(parameters):
     return out
 
 
-def compute_accuracy(network, dataset, device, N=2000, batch_size=50):
-    """Computes accuracy of `network` on `dataset`."""
-    with torch.no_grad():
-        N = min(len(dataset), N)
-        batch_size = min(batch_size, N)
-        dataset_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        correct = 0
-        total = 0
-        for x, labels in islice(dataset_loader, N // batch_size):
-            logits = network(x.to(device))
-            predicted_labels = torch.argmax(logits, dim=1)
-            correct += torch.sum(predicted_labels == labels.to(device))
-            total += x.size(0)
-        return (correct / total).item()
+# def compute_accuracy(network, dataset, device, N=2000, batch_size=50):
+#     """Computes accuracy of `network` on `dataset`."""
+#     with torch.no_grad():
+#         N = min(len(dataset), N)
+#         batch_size = min(batch_size, N)
+#         dataset_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+#         correct = 0
+#         total_acc = 0
+#         for x, labels in islice(dataset_loader, N // batch_size):
+#             logits = network(x.to(device))
+#             predicted_labels = torch.argmax(logits, dim=1)
+#             correct += torch.sum(predicted_labels == labels.to(device))
+#             total_acc += x.size(0)
+#         return (correct / total_acc).item()
 
-def compute_loss(network, dataset, loss_function, device, N=2000, batch_size=50):
-    """Computes mean loss of `network` on `dataset`."""
-    with torch.no_grad():
-        N = min(len(dataset), N)
-        batch_size = min(batch_size, N)
-        dataset_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        loss_fn = loss_function_dict[loss_function](reduction='sum')
-        one_hots = torch.eye(10, 10).to(device)
-        total = 0
-        points = 0
-        for x, labels in islice(dataset_loader, N // batch_size):
-            y = network(x.to(device))
-            if loss_function == 'CrossEntropy':
-                total += loss_fn(y, labels.to(device)).item()
-            elif loss_function == 'MSE':
-                total += loss_fn(y, one_hots[labels]).item()
-            points += len(labels)
-        return total / points
+@torch.no_grad()
+def compute_loss_accuracy(network, dataset, loss_function, device, N=2000, batch_size=128):
+    """Computes mean loss and accuracy of `network` on `dataset`."""
+    N = min(len(dataset), N)
+    batch_size = min(batch_size, N)
+    dataset_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    loss_fn = loss_function_dict[loss_function](reduction='sum')
+    one_hots = torch.eye(10, 10).to(device)
+    total = 0
+    points = 0
+    # accuracy
+    correct = 0
+    total_acc = 0
+    for x, labels in islice(dataset_loader, N // batch_size):
+        y = network(x.to(device))
+        if loss_function == 'CrossEntropy':
+            total += loss_fn(y, labels.to(device)).item()
+        elif loss_function == 'MSE':
+            total += loss_fn(y, one_hots[labels]).item()
+        points += len(labels)
+        # accuracy
+        predicted_labels = torch.argmax(y, dim=1)
+        correct += torch.sum(predicted_labels == labels.to(device))
+        total_acc += x.size(0)  
+    return total / points, (correct / total_acc).item()
 
 def log_gradients_in_model_tb(model, logger, step):
     with torch.no_grad():
