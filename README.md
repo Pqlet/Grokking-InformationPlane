@@ -4,9 +4,16 @@ This project explores the training dynamics during Grokking on Information Plane
 
 As per the theory proposed by Shwartz-Ziv and Tishby [2], the training can be divided into two separate phases: empirical error minimization (ERM), basically fitting, and representation compression. The results show that the dynamics of grokking in the Information Plane can be split into 3 phases: (1) the overfitting phase, where both MI values decrease. (2) the empirical error minimization phase, where both MI values increase, as well as test accuracy. (3) The representation compression phase, where MI with the input decreases.
 
-## Running the code
+
+## Setup
 
 To reproduce the results you need to install the `mutinfo` library from https://github.com/VanessB/Information-v3.
+
+1) run `pip install -e .` in `./Information-v3/`
+
+2) run `pip install -r ./requirements.txt` in `./Grokking-InformationPlane/`
+
+## Running the code
 
 ```python
 # Run the training
